@@ -1,0 +1,106 @@
+---
+title: "Gene-snp-assoc"
+author: "Mia Simmons"
+output: html_document
+date: "2025-09-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Setup
+
+Packages needed
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(readxl)
+library(writexl)
+library(here)
+library(data.table)
+library(R.utils)
+```
+
+#Importing and reformatting required datasets
+
+Each chunk loads in a file.
+
+##Genes
+
+```{r}
+
+genes <- read.csv("Z:/2024 CCS Study/Mia/Gene list/Slim Pain Gene List CSV_2025-09-09.csv")
+
+```
+
+##PLINK Data
+
+```{r}
+
+# plink <- fread("FILE PATH/REQUIRED FILE NAME plink.assoc.logistic", sep = "auto")
+
+
+
+```
+
+
+#Reformatting datasets
+
+Remones and renames as columns as necessary
+
+##Genes
+
+```{r}
+
+slim_genes <- genes %>%
+  rename(Start = Start..500, End = End..500, Gene = Gene.name) %>%
+  filter(Chromosome != "X") %>%
+  distinct(Gene, .keep_all = TRUE) %>%
+  mutate(Chromosome = as.numeric(Chromosome))
+  #group_by(Chromosome) #didn't end up using this
+
+```
+
+
+##PLINK
+
+```{r}
+
+slim_plink <- plink %>%
+  subset(select = -c(MARKER, TEST, NMISS, SE, STAT, TRAIT, JOBID)) %>%
+  rename(Chromosome = CHR, OR = ORX) %>%
+  group_by(Chromosome)
+
+```
+
+
+#Combining datasets
+
+Much simpler than I assumed, unless I'm missing something. Defines first where the join should occur (join at chromosomes where the BP of the first dataset is between the start and end columns of the second dataset), then full joins the first dataset (plink data) with the second dataset (gene list), then views the resulting table
+
+##Adjusted
+
+```{r}
+
+by <- join_by(Chromosome, between (BP, Start, End))
+
+plink_summ <- full_join(slim_plink, slim_genes, by)
+
+view(plink_summ)
+
+```
+
+
+#Print combined table to excel format
+
+Saves the dataset to working directory
+
+```{r}
+
+# write_xlsx(plink_summ,"DESIRED FILE NAME.xlsx")
+
+
+
+```
