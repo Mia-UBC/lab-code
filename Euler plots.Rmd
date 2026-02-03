@@ -24,20 +24,23 @@ library(readxl)
 
 #Data import
 
-Pulling data from the gene list page that also has all phenotypes listed (*HPGD Non-analgesic genes_2025-08-26.xlsx, sheet Real Gene List w Phenotypes*).
+Pull data from a gene list file that includes at least Gene name and grouping criteria (i.e. phenotype). 
+
+Used *HPGD Non-analgesic genes_2025-08-26.xlsx, sheet Real Gene List w Phenotypes* for pain gene set, for example.
 
 The below code can probably be cleaned up to be more generizable/less location dependent, but that is a project for another day.
 
 ```{r}
 
-data <- read_excel("Z:/Morphine studies/2024 CCS Study/Mia/Gene list/HPGD Non-analgesic genes_2025-08-26.xlsx", sheet = "Real Gene List w Phenotypes")
+data <- read_excel("Location/filename", sheet = "sheetname")
 
 ```
 
+# Data manipulation
 
 First time using the *eulerr* package. Attempting to do any manipulations necessary to make it work.
 
-Subset/manipulate data to only have relevant variables
+Subset/manipulate data to only have relevant variables. Change as needed based on data.
 
 ```{r}
 
@@ -59,6 +62,8 @@ pivot_data <- euler_data %>%
   separate_longer_delim(Phenotypes, "&")
 
 ```
+
+## Below is specifically how I made the pain gene eulerr
 
 Manipulating data into a form that can be parsed by *eulerr*
 - Phenotypes condensed into 4 categories
@@ -92,7 +97,7 @@ condensed_count <- condensed_data %>%
 
 ```
 
-Coercing data into euler format
+## Coercing data into euler format
 
 ```{r}
 
@@ -100,7 +105,7 @@ panel_a <- euler(setNames(as.numeric(condensed_count[1, ]), names(condensed_coun
 
 ```
 
-Making the plot
+# Making the plot
 
 ```{r}
 
@@ -112,3 +117,4 @@ blobs <- plot(panel_a, quantities = list(fontsize = 9),
      legend = list(labels = c("Analgesia", "Clinical Pain Conditions*", "Nociception", "Post-operative Pain"), side = "right"))
 
 ```
+
