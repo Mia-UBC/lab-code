@@ -9,15 +9,15 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Plot for ATP Conference
+# Introduction
 
-This file will include all the code for creating the forest plot I need for the ATP conference. It will turn the (very large) file containing the results of the linear regression genetic analyses from the rotations into said plots.
+This file will include all the code for creating the forest plot. It will turn the (very large) file containing the results of the logistic regression genetic analyses into said plots.
 
 ------------------------------------------------------------------------
 
-## Setup
+# Setup
 
-### Libraries
+## Libraries
 
 These are the libraries that must be loaded to run this code. Edit as needed if a library must be installed.
 
@@ -30,7 +30,7 @@ library(patchwork)
 library(readxl)
 ```
 
-### Data
+## Data
 
 The data was loaded in from an Excel file using the *readxl* and *here* packages. The table is saved in R as *VEPORtable_forest*, same as the table the data is pulled from.
 
@@ -38,7 +38,7 @@ The data was loaded in from an Excel file using the *readxl* and *here* packages
 
 # import data
 
-VEPORtable_forest <- read_excel(here("VEPORtable_forest.xlsx"))
+VEPORtable_forest <- read_excel(here("filname.xlsx"))
 
 ```
 
@@ -253,4 +253,5 @@ Now that the graph has been made, it needs to be exported.
 #ggsave("CSPT Forest Plot.png", width = 11, height = 5)
 
 ```
+
 
