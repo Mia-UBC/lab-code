@@ -1,0 +1,256 @@
+---
+title: "Forest Plots"
+author: "Mia Simmons"
+date: "2025-05-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Plot for ATP Conference
+
+This file will include all the code for creating the forest plot I need for the ATP conference. It will turn the (very large) file containing the results of the linear regression genetic analyses from the rotations into said plots.
+
+------------------------------------------------------------------------
+
+## Setup
+
+### Libraries
+
+These are the libraries that must be loaded to run this code. Edit as needed if a library must be installed.
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(here)
+library(gt)
+library(patchwork)
+library(readxl)
+```
+
+### Data
+
+The data was loaded in from an Excel file using the *readxl* and *here* packages. The table is saved in R as *VEPORtable_forest*, same as the table the data is pulled from.
+
+```{r}
+
+# import data
+
+VEPORtable_forest <- read_excel(here("VEPORtable_forest.xlsx"))
+
+```
+
+------------------------------------------------------------------------
+
+## Data Manipulation
+
+This section will include all coding for the manipulation of *VEPORtable_excel*. The goal of this section is to remove unneccessary columns and rows. To be removed:
+
+-   Columns that were from the unadjusted linear regression (Columns E-H)
+
+-   Rows that do not contain:
+
+    -   p-values \< 0.05
+
+    -   CADD scores \> 10
+    
+    -   And are not missense variants
+
+The final table will be named *filtered_variants*
+
+```{r}
+
+# drops the columns from the unadjusted linear regression
+
+adjusted_reg <- subset(VEPORtable_forest, select = -c(OR, L95...6, U95...7, P...8))
+
+glimpse(adjusted_reg)
+
+```
+
+```{r}
+
+# renames the columns to be more functional
+
+adjusted_reg <- adjusted_reg %>%
+  rename(OR = Or, L95 = L95...10, U95 = U95...11, P = P...12, CADD_score = CADD_PHRED)
+
+```
+
+```{r}
+
+# combines the Gene column with the onlyrsID column
+
+adjusted_reg <- adjusted_reg %>%
+  unite(Gene_variant, c(Gene, onlyrsID), sep = " ", remove = FALSE)
+
+```
+
+```{r}
+
+# removes rows with P-values > 0.05, CADD scores < 10
+
+filtered_variants <- adjusted_reg %>%
+  filter(P <= 0.05 & CADD_score >= 10 & Consequence == "missense_variant")
+
+```
+
+This is all the manipluation required for this dataset
+
+---
+
+## Making the Forest Plot
+
+This forest plot will be made based of the tutorial on https://www.khstats.com/blog/forest-plots/
+
+### Forest Plot
+
+The main part of the figure, containing the most vital information.
+
+```{r}
+
+# creates the forest plot, the main part of the figure
+
+forest <- filtered_variants %>%
+  ggplot(aes(y = fct_rev(Gene_variant))) +
+  geom_point(aes(x = OR), shape = 15, size = 1.5) +
+  geom_linerange(aes(xmin = L95, xmax = U95)) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  labs(x = "Odds Ratio", y = "") +
+  coord_cartesian(ylim = c(1,4)) +
+  scale_x_continuous(breaks = seq(0,12, by = 1)) +
+  theme_classic() +
+  theme(axis.line.y = element_blank(),
+        axis.ticks.y= element_blank(),
+        axis.text.y= element_blank(),
+        axis.title.y= element_blank())
+
+forest
+
+```
+
+### List of OR and Confidence intervals
+
+```{r}
+
+# Reformat data for left and right sides of plot
+
+rounded_data <- filtered_variants %>%
+  # round OR, 95% CIs, and CADD score to 2 decimal places for journal specifications
+  mutate(
+    across(
+      c(OR, L95, U95, CADD_score),
+      ~str_pad(
+        round(
+          .x, 2), width = 4, pad = "0", side = "right"
+        )
+      ),
+    # add an "-" between CIs
+    confi_inter = paste0(
+      OR, " (", L95, "-", U95, ")"
+      )
+    ) %>%
+  # round p-values to two decimal places, except in cases where p < .001
+  mutate(
+    P = case_when(
+      P < 0.001 ~ "<0.001",
+      round(
+        P, 2) == 0.05 ~ as.character(
+          round(
+            P, 3)
+          ),
+    P < .01 ~ str_pad( # if less than .01, go one more decimal place
+      as.character(
+        round(P, 3)),
+      width = 4, pad = "0", side = "right"
+        ),
+    TRUE ~ str_pad( # otherwise just round to 2 decimal places and pad string so that .2 reads as 0.20
+      as.character(round(P, 2)),
+      width = 4, pad = "0", side = "right"
+        )
+      )
+    ) %>%
+  # add a row of data that are actually column names which will be shown on the plot in the next step
+  bind_rows(
+    data.frame(
+      Gene_variant = "Gene Variant",
+      confi_inter = "Odds Ratio (95% CI)",
+      L95 = "",
+      U95 = "",
+      P = "p-value",
+      CADD_score = "CADD score"
+    )
+  ) %>%
+  # trying to get the order of things to match up
+  mutate(Gene_variant = fct_rev(fct_relevel(Gene_variant, "Gene Variant")))
+
+```
+
+```{r}
+
+# Show ORs and CIs for each of the 3 variants
+
+p_left <- rounded_data %>%
+  ggplot(aes(y = Gene_variant)) +
+  geom_text(aes(x = 0, label = Gene_variant), hjust = 0, fontface = ifelse(rounded_data$Gene_variant == "Gene Variant", "bold", "bold.italic"), size = ifelse(rounded_data$Gene_variant == "Gene Variant", 4, 3.5)) +
+  geom_text(aes(x = 1, label = confi_inter), hjust = 0, fontface = ifelse(rounded_data$confi_inter == "Odds Ratio (95% CI)", "bold", "plain"), size = ifelse(rounded_data$confi_inter == "Odds Ratio (95% CI)", 4, 3.5)) +
+  geom_text(aes(x = 2, label = CADD_score), hjust = 0, fontface =
+ifelse(rounded_data$CADD_score == "CADD score", "bold", "plain"), size = ifelse(rounded_data$CADD_score == "CADD score", 4, 3.5)) +
+  coord_cartesian(xlim = c(0, 4)) +
+  theme_void()
+
+p_left
+
+```
+
+### List of p-values
+
+```{r}
+
+# Show p-values for each of the 3 variants
+
+p_right <- rounded_data %>%
+  ggplot() +
+  geom_text(
+    aes(x = 0, y = Gene_variant, label = P),
+    hjust = 0,
+    fontface = ifelse(rounded_data$P == "p-value", "bold", "plain"), 
+    size = ifelse(rounded_data$P== "p-value", 4, 3.5)
+  ) +
+  theme_void() 
+
+p_right
+
+```
+
+### Whole plot
+
+```{r}
+# Puts the left, middle, and right parts of the plot together
+
+layout <- c(
+  area(t = 0, l = 0, b = 30, r = 25), # left plot, starts at the top of the page (0) and goes 30 units down and 20 units to the right
+  area(t = 1, l = 17, b = 30, r = 35), # middle plot starts a little lower (t=1) because there's no title. starts at l=11, goes to the bottom of the page (30 units), and 7 units further over from the left plot (r=18)
+  area(t = 0, l = 35, b = 30, r = 38) # right most plot starts at top of page, begins where middle plot ends (l=18, and middle plot is r=18), goes to bottom of page (b=30), and extends two units wide (r=20)
+)
+
+# final plot arrangement
+p_left + forest + p_right + plot_layout(design = layout)
+
+```
+
+##Exporting plot
+
+Now that the graph has been made, it needs to be exported.
+
+```{r}
+# Save figure as a png
+
+#ggsave("APT Forest Plot.png", width = 9.5, height = 5)
+
+#ggsave("CSPT Forest Plot.png", width = 11, height = 5)
+
+```
+

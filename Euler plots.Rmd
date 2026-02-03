@@ -1,0 +1,114 @@
+---
+title: "Euler plot"
+author: "Mia"
+date: "2026-01-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#Libraries
+
+```{r}
+
+library(eulerr)
+library(tidyverse)
+library(dplyr)
+library(readxl)
+
+```
+
+
+#Data import
+
+Pulling data from the gene list page that also has all phenotypes listed (*HPGD Non-analgesic genes_2025-08-26.xlsx, sheet Real Gene List w Phenotypes*).
+
+The below code can probably be cleaned up to be more generizable/less location dependent, but that is a project for another day.
+
+```{r}
+
+data <- read_excel("Z:/Morphine studies/2024 CCS Study/Mia/Gene list/HPGD Non-analgesic genes_2025-08-26.xlsx", sheet = "Real Gene List w Phenotypes")
+
+```
+
+
+First time using the *eulerr* package. Attempting to do any manipulations necessary to make it work.
+
+Subset/manipulate data to only have relevant variables
+
+```{r}
+
+euler_data <- data %>%
+  rename(Genes = "Gene name") %>%
+  subset(select = c(Genes, Phenotypes)) %>%
+  mutate(Phenotypes = str_replace_all(Phenotypes, ", ", "&"), 
+         Phenotypes = str_replace_all(Phenotypes, " ", "_"), 
+         Phenotypes = str_replace_all(Phenotypes, "pain", "Pain"), 
+         Phenotypes = str_replace_all(Phenotypes, "Pain,", "Pain"))
+
+```
+
+Pivoting out *euler_data* so each phenotype has it's own column with a value of either TRUE or FALSE for each gene.
+
+```{r}
+
+pivot_data <- euler_data %>%
+  separate_longer_delim(Phenotypes, "&")
+
+```
+
+Manipulating data into a form that can be parsed by *eulerr*
+- Phenotypes condensed into 4 categories
+  - Analgesia
+  - Clinical Pain Conditions
+  - Nociception
+  - Post-operative Pain
+- Rows collapsed so that each gene has one row, with all associated phenotypes in that row
+
+A new dataset is created with the counts of each phenotype and phenotype combination listed. This is then pivoted so each phenotype/phenotype combo is a column, with one row each, containing the number of times it was seen in the original dataset.
+
+```{r}
+
+condensed_data <- pivot_data %>%
+  mutate(Phenotypes = str_replace_all(Phenotypes, "Migraine", "Clinical_Pain_Conditions"),
+         Phenotypes = str_replace_all(Phenotypes, "Arthritis", "Clinical_Pain_Conditions"),
+         Phenotypes = str_replace_all(Phenotypes, "Cancer_Pain", "Clinical_Pain_Conditions"),
+         Phenotypes = str_replace_all(Phenotypes, "Fibromyalgia", "Clinical_Pain_Conditions"),
+         Phenotypes = str_replace_all(Phenotypes, "Musculoskeletal_Pain", "Clinical_Pain_Conditions"),
+         Phenotypes = str_replace_all(Phenotypes, "Neuraxial_Pain", "Clinical_Pain_Conditions"),
+         Phenotypes = str_replace_all(Phenotypes, "Neuropathic_Pain", "Clinical_Pain_Conditions"),
+         Phenotypes = str_replace_all(Phenotypes, "Other_Clinical_Pain", "Clinical_Pain_Conditions"),
+         Phenotypes = str_replace_all(Phenotypes, "Temporomandibular_Disorder", "Clinical_Pain_Conditions"),) %>%
+  group_by(Genes) %>%
+  distinct(Phenotypes, .keep_all = TRUE) %>%
+  summarize(Phenotypes = paste(Phenotypes, collapse = "&"))
+
+condensed_count <- condensed_data %>%
+  count(Phenotypes) %>%
+  pivot_wider(names_from = Phenotypes, values_from = n)
+
+```
+
+Coercing data into euler format
+
+```{r}
+
+panel_a <- euler(setNames(as.numeric(condensed_count[1, ]), names(condensed_count)), shape = "ellipse")
+
+```
+
+Making the plot
+
+```{r}
+
+blobs <- plot(panel_a, quantities = list(fontsize = 9),
+     fills = list(fill = c("#FBB4AE", "#B3CDE3", "#CCEBC5", "#DECBE4"), alpha = 0.7),
+     edges = "black",
+     main = list(label = "Phenotype Categories of Pain-Related Genes", cex = 0.9),
+     # quantities = TRUE,
+     legend = list(labels = c("Analgesia", "Clinical Pain Conditions*", "Nociception", "Post-operative Pain"), side = "right"))
+
+```
