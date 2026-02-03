@@ -31,7 +31,7 @@ Each chunk loads in a file.
 
 ```{r}
 
-genes <- read.csv("Z:/2024 CCS Study/Mia/Gene list/Slim Pain Gene List CSV_2025-09-09.csv")
+genes <- read.csv("location/filename.csv")
 
 ```
 
@@ -39,7 +39,7 @@ genes <- read.csv("Z:/2024 CCS Study/Mia/Gene list/Slim Pain Gene List CSV_2025-
 
 ```{r}
 
-# plink <- fread("FILE PATH/REQUIRED FILE NAME plink.assoc.logistic", sep = "auto")
+# plink <- fread("Flocation/filename plink.assoc.logistic", sep = "auto")
 
 
 
@@ -48,7 +48,7 @@ genes <- read.csv("Z:/2024 CCS Study/Mia/Gene list/Slim Pain Gene List CSV_2025-
 
 #Reformatting datasets
 
-Remones and renames as columns as necessary
+Removes and renames columns as necessary. Modify to fit dataset.
 
 ##Genes
 
@@ -102,5 +102,5 @@ Saves the dataset to working directory
 # write_xlsx(plink_summ,"DESIRED FILE NAME.xlsx")
 
 
-
 ```
+
